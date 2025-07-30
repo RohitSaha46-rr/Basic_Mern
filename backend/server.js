@@ -12,18 +12,27 @@ const corsOptions = {
     'https://prismatic-gaufre-54d167.netlify.app',
     'http://localhost:3000'
   ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],         // Allowed methods
+  allowedHeaders: ['Content-Type'],                  // Allowed headers
+  credentials: true ,
   optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
 app.use(express.json());
-
+app.options('*', cors(corsOptions))
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 }).then(() => console.log("✅ MongoDB connected"))
   .catch(err => console.error("❌ MongoDB error:", err));
-
+// Add this before your routes
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://brilliant-empanada-6fb34a.netlify.app');
+  res.header('Access-Control-Allow-Methods', 'GET, POST');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  next();
+});
 // Routes
 // Add this before other routes
 app.get('/', (req, res) => {
