@@ -3,60 +3,67 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 
-const Feedback = require('./models/feedback');
+const Feedback = require('./models/Feedback');
 const app = express();
 
-// MODIFIED: Added specific CORS options
+// Fixed CORS Configuration
+const allowedOrigins = [
+  'https://brilliant-empanada-6fb34a.netlify.app',
+  'http://localhost:3000'
+];
+
 const corsOptions = {
-  origin: [
-    'https://prismatic-gaufre-54d167.netlify.app',
-    'http://localhost:3000'
-  ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],         // Allowed methods
-  allowedHeaders: ['Content-Type'],                  // Allowed headers
-  credentials: true ,
-  optionsSuccessStatus: 200
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type']
 };
+
 app.use(cors(corsOptions));
 app.use(express.json());
-app.options('*', cors(corsOptions))
-// Connect to MongoDB
+
+// MongoDB Connection
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
-}).then(() => console.log("✅ MongoDB connected"))
-  .catch(err => console.error("❌ MongoDB error:", err));
-// Add this before your routes
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'https://brilliant-empanada-6fb34a.netlify.app');
-  res.header('Access-Control-Allow-Methods', 'GET, POST');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
-  next();
-});
+})
+.then(() => console.log("✅ MongoDB connected"))
+.catch(err => console.error("❌ MongoDB error:", err));
+
 // Routes
-// Add this before other routes
 app.get('/', (req, res) => {
-  res.send('Backend is running');
+  res.send('Feedback API is running');
 });
 
-app.post('/feedbacks', async (req, res) => {
+// Specific OPTIONS handler only for /feedbacks
+app.options('/feedbacks', cors(corsOptions)); 
+
+app.post('/feedbacks', cors(corsOptions), async (req, res) => {
   try {
     const newFeedback = new Feedback(req.body);
     await newFeedback.save();
     res.status(201).json(newFeedback);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to save feedback.' });
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.get('/feedbacks', async (req, res) => {
+app.get('/feedbacks', cors(corsOptions), async (req, res) => {
   try {
     const feedbacks = await Feedback.find().sort({ createdAt: -1 });
     res.json(feedbacks);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch feedbacks.' });
+    res.status(500).json({ error: err.message });
   }
 });
 
+// Server Start
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0',() => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
