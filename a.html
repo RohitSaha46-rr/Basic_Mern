@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 p-6 min-h-screen transition-colors">
+  <div class="max-w-6xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-3xl font-bold text-indigo-700 dark:text-indigo-300">📊 Admin Dashboard</h1>
+      <button onclick="toggleDarkMode()" class="bg-gray-200 dark:bg-gray-700 text-sm px-4 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">Toggle Dark Mode</button>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-8">
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+        <h2 class="text-xl font-semibold mb-4">Feedback Records</h2>
+        <div class="overflow-auto max-h-[400px]">
+          <table class="w-full text-sm">
+            <thead class="bg-indigo-100 dark:bg-indigo-900">
+              <tr>
+                <th class="text-left p-2">Name</th>
+                <th class="text-left p-2">Meal</th>
+                <th class="text-left p-2">Feedback</th>
+                <th class="text-left p-2">Rating</th>
+                <th class="text-left p-2">Time</th>
+              </tr>
+            </thead>
+            <tbody id="feedbackTable" class="divide-y divide-gray-200 dark:divide-gray-700">
+              <!-- Rows inserted dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+        <h2 class="text-xl font-semibold mb-4">Feedback by Meal</h2>
+        <canvas id="mealChart" height="200"></canvas>
+        <h2 class="text-xl font-semibold mt-8 mb-4">Sentiment Distribution</h2>
+        <canvas id="sentimentChart" height="200"></canvas>
+      </div>
+    </div>
+
+    <div class="text-right mt-6">
+      <a href="dashboard.html" class="text-indigo-600 dark:text-indigo-300 hover:underline">← Back to Feedback Form</a>
+    </div>
+  </div>
+
+  <script>
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark');
+      // Update chart colors when toggling dark mode
+      updateChartColors();
+    }
+
+    // ===== MODIFIED SECTION START =====
+    // Changed from localStorage to MongoDB fetch
+    async function loadFeedbackData() {
+      try {
+        const response = await fetch('http://localhost:5000/feedbacks');
+        if (!response.ok) throw new Error('Failed to fetch feedback');
+        
+        const feedbackList = await response.json();
+        renderFeedbackData(feedbackList);
+      } catch (error) {
+        console.error('Error loading feedback from API:', error);
+        // Fallback to localStorage if API fails
+        const localData = JSON.parse(localStorage.getItem('feedbackList')) || [];
+        renderFeedbackData(localData);
+        alert('⚠️ Using local backup data. Server might be down.');
+      }
+    }
+
+    function renderFeedbackData(feedbackList) {
+      const tbody = document.getElementById('feedbackTable');
+      const mealCounts = { Breakfast: 0, Lunch: 0, Dinner: 0 };
+      const sentimentCounts = { Positive: 0, Neutral: 0, Negative: 0 };
+
+      tbody.innerHTML = '';
+      
+      feedbackList.reverse().forEach(item => {
+        mealCounts[item.meal]++;
+        const sentiment = getSentiment(item.feedback);
+        sentimentCounts[sentiment]++;
+
+        let stars = '';
+        if (item.rating && item.rating >= 1 && item.rating <= 5) {
+          stars = getStars(item.rating);
+        } else {
+          stars = '—';
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="p-2">${item.name}</td>
+          <td class="p-2">
+            <span class="px-2 py-1 text-xs rounded-full font-medium 
+              ${item.meal === 'Breakfast' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' : ''}
+              ${item.meal === 'Lunch' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : ''}
+              ${item.meal === 'Dinner' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' : ''}">
+              ${item.meal}
+            </span>
+          </td>
+          <td class="p-2">${item.feedback}</td>
+          <td class="p-2 text-yellow-500">${stars}</td>
+          <td class="p-2 text-gray-500 dark:text-gray-400">${item.time}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      updateCharts(mealCounts, sentimentCounts);
+    }
+    // ===== MODIFIED SECTION END =====
+
+    // Helper functions (unchanged)
+    function getSentiment(feedback) {
+      const lower = feedback.toLowerCase();
+      const positiveWords = ['good', 'great', 'excellent', 'tasty', 'nice', 'love', '😊', '😍', '👍'];
+      const negativeWords = ['bad', 'worst', 'poor', 'hate', 'awful', '👎', '😡', '🤮'];
+      const neutralWords = ['ok', 'average', 'fine', '😐', '😶'];
+
+      if (positiveWords.some(word => lower.includes(word))) return 'Positive';
+      if (negativeWords.some(word => lower.includes(word))) return 'Negative';
+      if (neutralWords.some(word => lower.includes(word))) return 'Neutral';
+      return 'Neutral';
+    }
+
+    function getStars(rating) {
+      return '⭐'.repeat(rating) + '☆'.repeat(5 - rating);
+    }
+
+    let mealChart, sentimentChart;
+
+    function updateCharts(mealCounts, sentimentCounts) {
+      // Destroy existing charts if they exist
+      if (mealChart) mealChart.destroy();
+      if (sentimentChart) sentimentChart.destroy();
+
+      const ctxBar = document.getElementById('mealChart').getContext('2d');
+      mealChart = new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+          labels: ['Breakfast', 'Lunch', 'Dinner'],
+          datasets: [{
+            label: 'Number of Feedbacks',
+            data: [mealCounts.Breakfast, mealCounts.Lunch, mealCounts.Dinner],
+            backgroundColor: [
+              'rgba(255, 206, 86, 0.6)',
+              'rgba(75, 192, 192, 0.6)',
+              'rgba(153, 102, 255, 0.6)'
+            ],
+            borderRadius: 8
+          }]
+        },
+        options: {
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1
+              }
+            }
+          }
+        }
+      });
+
+      const ctxPie = document.getElementById('sentimentChart').getContext('2d');
+      sentimentChart = new Chart(ctxPie, {
+        type: 'pie',
+        data: {
+          labels: ['Positive', 'Neutral', 'Negative'],
+          datasets: [{
+            data: [sentimentCounts.Positive, sentimentCounts.Neutral, sentimentCounts.Negative],
+            backgroundColor: [
+              'rgba(34,197,94,0.6)',
+              'rgba(147,197,253,0.6)',
+              'rgba(239,68,68,0.6)'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: document.body.classList.contains('dark') ? '#fff' : '#000'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateChartColors() {
+      if (sentimentChart) {
+        sentimentChart.options.plugins.legend.labels.color = 
+          document.body.classList.contains('dark') ? '#fff' : '#000';
+        sentimentChart.update();
+      }
+    }
+
+    // Load data when page loads
+    loadFeedbackData();
+  </script>
+</body>
+</html>
