@@ -59,7 +59,7 @@
     // Changed from localStorage to MongoDB fetch
     async function loadFeedbackData() {
       try {
-        const response = await fetch('http://localhost:5000/feedbacks');
+        const response = await fetch('https://basic-mern-back.onrender.com/feedbacks');
         if (!response.ok) throw new Error('Failed to fetch feedback');
         
         const feedbackList = await response.json();
