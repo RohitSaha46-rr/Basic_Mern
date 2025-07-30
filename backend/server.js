@@ -8,10 +8,11 @@ const app = express();
 
 // Fixed CORS Configuration
 const allowedOrigins = [
-  'https://stellar-conkies-50f39b.netlify.app/',
-  'http://localhost:3000'
+  'https://stellar-conkies-50f39b.netlify.app', // New Netlify URL
+  'https://brilliant-empanada-6fb34a.netlify.app', // Previous Netlify URL
+  'https://basic-mern-back.onrender.com', // Your Render backend
+  'http://localhost:3000' // For local development
 ];
-
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
