@@ -3,7 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 
-const Feedback = require('./models/Feedback');
+const Feedback = require('./models/feedback');
 const app = express();
 
 // Fixed CORS Configuration
