@@ -8,7 +8,7 @@ const app = express();
 
 // Fixed CORS Configuration
 const allowedOrigins = [
-  'https://brilliant-empanada-6fb34a.netlify.app',
+  'https://stellar-conkies-50f39b.netlify.app/',
   'http://localhost:3000'
 ];
 
